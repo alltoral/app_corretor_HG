@@ -108,6 +108,7 @@
   }
   .tag.venda{background:var(--brand-900);color:#fff;}
   .tag.aluguel{background:var(--brand-700);color:#fff;}
+  .tag.categoria{background:var(--brand-100);color:var(--brand-800);text-transform:none;}
   .tag.codigo{background:none;color:var(--muted);font-weight:600;text-transform:none;padding:0;font-size:11px;}
   .card .titulo{font-size:14.5px;font-weight:700;margin:0 0 2px;color:var(--brand-900);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -277,6 +278,11 @@
       <button class="filter-chip" data-filter="venda">Venda</button>
       <button class="filter-chip" data-filter="aluguel">Aluguel</button>
     </div>
+    <div class="filters">
+      <button class="filter-chip active" data-catfilter="todas">🏠🏢 Todos os tipos</button>
+      <button class="filter-chip" data-catfilter="casa">🏠 Casa</button>
+      <button class="filter-chip" data-catfilter="apartamento">🏢 Apartamento</button>
+    </div>
   </div>
 
   <div id="grid" class="grid"></div>
@@ -306,6 +312,12 @@
     <div class="tipo-toggle">
       <button type="button" class="venda" data-tipo="venda" id="tipoVenda">Venda</button>
       <button type="button" class="aluguel" data-tipo="aluguel" id="tipoAluguel">Aluguel</button>
+    </div>
+
+    <label>🏠 Tipo de imóvel</label>
+    <div class="tipo-toggle">
+      <button type="button" data-cat="casa" id="catCasa">🏠 Casa</button>
+      <button type="button" data-cat="apartamento" id="catApto">🏢 Apartamento</button>
     </div>
 
     <div class="row2">
@@ -447,10 +459,12 @@
 
   let imoveis = [];
   let currentFilter = 'todos';
+  let currentCatFilter = 'todas';
   let editingId = null;
   let isNewRecord = true;
   let formPhotos = [];
   let formFotoHash = null;
+  let formCapaThumb = null;
   let formFinanciamento = null;
   let currentDetailId = null;
   let clientMode = false;
@@ -611,7 +625,7 @@
   async function uploadPhoto(file, imovelId, index){
     if(storageRef){
       const path = `imoveis/${imovelId}/${Date.now()}_${index}.jpg`;
-      const blob = await compressImageToBlob(file, 1600, 0.72);
+      const blob = await compressImageToBlob(file, 1280, 0.62);
       const ref = storageRef.ref().child(path);
       await ref.put(blob);
       return await ref.getDownloadURL();
@@ -669,6 +683,7 @@
       const q = $('#searchInput').value.trim().toLowerCase();
       list = imoveis.filter(im => {
         if(currentFilter !== 'todos' && !(im.tipo||[]).includes(currentFilter)) return false;
+        if(currentCatFilter !== 'todas' && im.categoria !== currentCatFilter) return false;
         if(q){
           const hay = (im.endereco + ' ' + im.bairro + ' ' + im.titulo + ' ' + (im.codigo||'')).toLowerCase();
           if(!hay.includes(q)) return false;
@@ -691,14 +706,16 @@
       const im = imgSearchResults ? entry.im : entry;
       const card = document.createElement('div');
       card.className = 'card';
-      const thumb = im.fotos && im.fotos[0] ? `<img src="${im.fotos[0]}">` : '🏠';
+      const thumbSrc = im.capaThumb || (im.fotos && im.fotos[0]);
+      const thumb = thumbSrc ? `<img src="${thumbSrc}" loading="lazy" decode="async">` : '🏠';
       const tags = (im.tipo||[]).map(t => `<span class="tag ${t}">${t === 'venda' ? 'Venda' : 'Aluguel'}</span>`).join('');
+      const catTag = im.categoria ? `<span class="tag categoria">${im.categoria === 'casa' ? '🏠 Casa' : '🏢 Apto'}</span>` : '';
       const codigoTag = im.codigo ? `<span class="tag codigo">🔑${escapeHtml(im.codigo)}</span>` : '';
       card.innerHTML = `
         ${imgSearchResults ? `<div class="match-badge">${entry.pct}% parecido</div>` : ''}
         <div class="thumb">${thumb}</div>
         <div class="info">
-          <div class="tags">${tags}${codigoTag}</div>
+          <div class="tags">${tags}${catTag}${codigoTag}</div>
           <p class="titulo">${escapeHtml(im.titulo || 'Sem título')}</p>
           <p class="end">📍 ${escapeHtml(im.bairro || '')}${im.bairro && im.endereco ? ' · ' : ''}${escapeHtml(im.endereco || '')}</p>
           <p class="valor">💰 ${fmtMoney(im.valor)}</p>
@@ -711,9 +728,15 @@
 
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      currentFilter = chip.dataset.filter;
+      if(chip.dataset.filter){
+        document.querySelectorAll('[data-filter]').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentFilter = chip.dataset.filter;
+      } else if(chip.dataset.catfilter){
+        document.querySelectorAll('[data-catfilter]').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentCatFilter = chip.dataset.catfilter;
+      }
       render();
     });
   });
@@ -762,13 +785,16 @@
   const formOverlay = $('#formOverlay');
   const detailOverlay = $('#detailOverlay');
   let formTipo = new Set();
+  let formCategoria = null;
 
   function openForm(im){
     editingId = im ? im.id : uid();
     isNewRecord = !im;
     formPhotos = im ? [...(im.fotos||[])] : [];
     formFotoHash = im ? (im.fotoHash || null) : null;
+    formCapaThumb = im ? (im.capaThumb || null) : null;
     formTipo = new Set(im ? (im.tipo||[]) : []);
+    formCategoria = im ? (im.categoria || null) : null;
     $('#formTitle').textContent = im ? 'Editar imóvel' : 'Novo imóvel';
     $('#fCodigo').value = im ? im.codigo || '' : '';
     $('#fTitulo').value = im ? im.titulo || '' : '';
@@ -783,6 +809,7 @@
     updateFinanciamentoButtons();
     $('#fDescricao').value = im ? im.descricao || '' : '';
     updateTipoButtons();
+    updateCategoriaButtons();
     renderPhotoGrid();
     formOverlay.classList.add('open');
   }
@@ -799,6 +826,19 @@
   $('#tipoAluguel').addEventListener('click', () => {
     formTipo.has('aluguel') ? formTipo.delete('aluguel') : formTipo.add('aluguel');
     updateTipoButtons();
+  });
+
+  function updateCategoriaButtons(){
+    $('#catCasa').classList.toggle('on', formCategoria === 'casa');
+    $('#catApto').classList.toggle('on', formCategoria === 'apartamento');
+  }
+  $('#catCasa').addEventListener('click', () => {
+    formCategoria = (formCategoria === 'casa') ? null : 'casa';
+    updateCategoriaButtons();
+  });
+  $('#catApto').addEventListener('click', () => {
+    formCategoria = (formCategoria === 'apartamento') ? null : 'apartamento';
+    updateCategoriaButtons();
   });
 
   function updateFinanciamentoButtons(){
@@ -844,7 +884,7 @@
         const idx = Number(btn.dataset.idx);
         const removed = formPhotos.splice(idx, 1)[0];
         deletePhotoFromStorage(removed);
-        if(idx === 0) formFotoHash = null;
+        if(idx === 0){ formFotoHash = null; formCapaThumb = null; }
         renderPhotoGrid();
       });
     });
@@ -871,6 +911,7 @@
             try{
               const previewDataUrl = await compressImage(file, 300, 0.6);
               formFotoHash = await computeDHash(previewDataUrl);
+              formCapaThumb = await compressImage(file, 260, 0.6);
             }catch(hashErr){}
           }
           const url = await uploadPhoto(file, editingId, Date.now() + '_' + i);
@@ -909,6 +950,7 @@
       id: editingId,
       codigo: $('#fCodigo').value.trim(),
       tipo: Array.from(formTipo),
+      categoria: formCategoria,
       titulo,
       endereco,
       bairro: $('#fBairro').value.trim(),
@@ -920,6 +962,7 @@
       financiamento: formFinanciamento,
       descricao: $('#fDescricao').value.trim(),
       fotos: formPhotos,
+      capaThumb: formCapaThumb,
       fotoHash,
       criadoEm: isNewRecord ? Date.now() : (imoveis.find(i=>i.id===editingId)?.criadoEm || Date.now())
     };
@@ -944,10 +987,11 @@
 
   function buildPropertyMarkup(im){
     const gallery = (im.fotos && im.fotos.length)
-      ? `<div class="gallery ${im.fotos.length===1?'single':''}">${im.fotos.map(f=>`<img src="${f}">`).join('')}</div>`
+      ? `<div class="gallery ${im.fotos.length===1?'single':''}">${im.fotos.map((f,i)=>`<img src="${f}" loading="${i===0?'eager':'lazy'}" decode="async">`).join('')}</div>`
       : `<div class="gallery-empty">Sem fotos cadastradas</div>`;
 
-    const tags = (im.tipo||[]).map(t => `<span class="tag ${t}">${t==='venda'?'Venda':'Aluguel'}</span>`).join('');
+    const tags = (im.tipo||[]).map(t => `<span class="tag ${t}">${t==='venda'?'Venda':'Aluguel'}</span>`).join('')
+      + (im.categoria ? `<span class="tag categoria">${im.categoria === 'casa' ? '🏠 Casa' : '🏢 Apartamento'}</span>` : '');
 
     const specs = [];
     if(im.quartos) specs.push(`<div class="spec"><b>🛏️ ${im.quartos}</b>Quartos</div>`);
