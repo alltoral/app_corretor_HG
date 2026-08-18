@@ -155,10 +155,16 @@
     flex:1;padding:10px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
     font-weight:700;font-size:13px;color:var(--muted);cursor:pointer;
   }
+  .tipo-toggle button.on{background:var(--brand-800);border-color:var(--brand-800);color:#fff;}
   .tipo-toggle button.on.venda{background:var(--brand-900);border-color:var(--brand-900);color:#fff;}
   .tipo-toggle button.on.aluguel{background:var(--brand-700);border-color:var(--brand-700);color:#fff;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .mini-field{margin-bottom:0;}
+  .mini-field .mini-label{
+    display:block;font-size:10.5px;font-weight:700;color:var(--muted);margin:0 0 4px;
+    text-transform:uppercase;letter-spacing:.3px;
+  }
 
   .photo-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
   .photo-item{width:78px;height:78px;border-radius:8px;overflow:hidden;position:relative;background:var(--brand-100);}
@@ -195,7 +201,7 @@
   .detail-end{font-size:14px;color:var(--muted);margin:0 0 10px;}
   .detail-valor{font-size:22px;font-weight:800;color:var(--brand-800);margin:0 0 12px;}
   .detail-tags{display:flex;gap:6px;margin-bottom:10px;}
-  .specs{display:flex;gap:16px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:14px;}
+  .specs{display:flex;flex-wrap:wrap;gap:16px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:14px;}
   .spec{font-size:13px;color:var(--brand-800);}
   .spec b{display:block;font-size:15px;color:var(--brand-900);}
   .detail-desc{font-size:14px;line-height:1.55;color:var(--ink);white-space:pre-wrap;}
@@ -268,43 +274,64 @@
     <h2 id="formTitle">Novo imóvel</h2>
   </div>
   <div class="overlay-body">
-    <label>Anúncio</label>
+    <label>🏷️ Anúncio</label>
     <div class="tipo-toggle">
-      <button type="button" data-tipo="venda" id="tipoVenda">Venda</button>
-      <button type="button" data-tipo="aluguel" id="tipoAluguel">Aluguel</button>
+      <button type="button" class="venda" data-tipo="venda" id="tipoVenda">Venda</button>
+      <button type="button" class="aluguel" data-tipo="aluguel" id="tipoAluguel">Aluguel</button>
     </div>
 
     <div class="row2">
       <div>
-        <label>Código do imóvel</label>
+        <label>🔑 Código do imóvel</label>
         <input type="text" id="fCodigo" placeholder="Ex: HG-014">
       </div>
       <div>
-        <label>Título</label>
+        <label>🏠 Título</label>
         <input type="text" id="fTitulo" placeholder="Ex: Apto 2 quartos">
       </div>
     </div>
 
-    <label>Endereço</label>
+    <label>📍 Endereço</label>
     <input type="text" id="fEndereco" placeholder="Rua, número, complemento">
 
-    <label>Bairro</label>
+    <label>📌 Bairro</label>
     <input type="text" id="fBairro" placeholder="Ex: Centro">
 
-    <label>Valor (R$)</label>
+    <label>💰 Valor (R$)</label>
     <input type="number" id="fValor" placeholder="Ex: 350000" step="0.01">
 
     <label>Detalhes</label>
-    <div class="row3">
-      <input type="number" id="fQuartos" placeholder="Quartos">
-      <input type="number" id="fBanheiros" placeholder="Banheiros">
-      <input type="number" id="fArea" placeholder="Área m²">
+    <div class="row2" style="margin-bottom:8px;">
+      <div class="mini-field">
+        <span class="mini-label">🛏️ Quartos</span>
+        <input type="number" id="fQuartos" placeholder="0">
+      </div>
+      <div class="mini-field">
+        <span class="mini-label">🛁 Banheiros</span>
+        <input type="number" id="fBanheiros" placeholder="0">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="mini-field">
+        <span class="mini-label">🚙 Vagas de garagem</span>
+        <input type="number" id="fVagas" placeholder="0">
+      </div>
+      <div class="mini-field">
+        <span class="mini-label">📐 Área m²</span>
+        <input type="number" id="fArea" placeholder="0">
+      </div>
     </div>
 
-    <label>Descrição</label>
+    <label>🚨 Aceita financiamento?</label>
+    <div class="tipo-toggle">
+      <button type="button" data-fin="sim" id="finSim">Sim</button>
+      <button type="button" data-fin="nao" id="finNao">Não</button>
+    </div>
+
+    <label>📝 Descrição</label>
     <textarea id="fDescricao" placeholder="Detalhes do imóvel, condições, diferenciais..."></textarea>
 
-    <label>Fotos <span style="text-transform:none;font-weight:400;color:var(--muted);">(até 20)</span></label>
+    <label>📷 Fotos <span style="text-transform:none;font-weight:400;color:var(--muted);">(até 20)</span></label>
     <div class="photo-grid" id="photoGrid">
       <div class="add-photo" id="addPhotoBtn">+</div>
     </div>
@@ -396,6 +423,7 @@
   let isNewRecord = true;
   let formPhotos = [];
   let formFotoHash = null;
+  let formFinanciamento = null;
   let currentDetailId = null;
   let clientMode = false;
   let imgSearchHash = null;
@@ -637,15 +665,15 @@
       card.className = 'card';
       const thumb = im.fotos && im.fotos[0] ? `<img src="${im.fotos[0]}">` : '🏠';
       const tags = (im.tipo||[]).map(t => `<span class="tag ${t}">${t === 'venda' ? 'Venda' : 'Aluguel'}</span>`).join('');
-      const codigoTag = im.codigo ? `<span class="tag codigo">#${escapeHtml(im.codigo)}</span>` : '';
+      const codigoTag = im.codigo ? `<span class="tag codigo">🔑${escapeHtml(im.codigo)}</span>` : '';
       card.innerHTML = `
         ${imgSearchResults ? `<div class="match-badge">${entry.pct}% parecido</div>` : ''}
         <div class="thumb">${thumb}</div>
         <div class="info">
           <div class="tags">${tags}${codigoTag}</div>
           <p class="titulo">${escapeHtml(im.titulo || 'Sem título')}</p>
-          <p class="end">${escapeHtml(im.bairro || '')}${im.bairro && im.endereco ? ' · ' : ''}${escapeHtml(im.endereco || '')}</p>
-          <p class="valor">${fmtMoney(im.valor)}</p>
+          <p class="end">📍 ${escapeHtml(im.bairro || '')}${im.bairro && im.endereco ? ' · ' : ''}${escapeHtml(im.endereco || '')}</p>
+          <p class="valor">💰 ${fmtMoney(im.valor)}</p>
         </div>
       `;
       card.addEventListener('click', () => openDetail(im.id));
@@ -721,7 +749,10 @@
     $('#fValor').value = im ? im.valor ?? '' : '';
     $('#fQuartos').value = im ? im.quartos ?? '' : '';
     $('#fBanheiros').value = im ? im.banheiros ?? '' : '';
+    $('#fVagas').value = im ? im.vagas ?? '' : '';
     $('#fArea').value = im ? im.area ?? '' : '';
+    formFinanciamento = im ? (im.financiamento || null) : null;
+    updateFinanciamentoButtons();
     $('#fDescricao').value = im ? im.descricao || '' : '';
     updateTipoButtons();
     renderPhotoGrid();
@@ -740,6 +771,19 @@
   $('#tipoAluguel').addEventListener('click', () => {
     formTipo.has('aluguel') ? formTipo.delete('aluguel') : formTipo.add('aluguel');
     updateTipoButtons();
+  });
+
+  function updateFinanciamentoButtons(){
+    $('#finSim').classList.toggle('on', formFinanciamento === 'sim');
+    $('#finNao').classList.toggle('on', formFinanciamento === 'nao');
+  }
+  $('#finSim').addEventListener('click', () => {
+    formFinanciamento = (formFinanciamento === 'sim') ? null : 'sim';
+    updateFinanciamentoButtons();
+  });
+  $('#finNao').addEventListener('click', () => {
+    formFinanciamento = (formFinanciamento === 'nao') ? null : 'nao';
+    updateFinanciamentoButtons();
   });
 
   function renderPhotoGrid(){
@@ -820,7 +864,9 @@
       valor: $('#fValor').value === '' ? null : Number($('#fValor').value),
       quartos: $('#fQuartos').value === '' ? null : Number($('#fQuartos').value),
       banheiros: $('#fBanheiros').value === '' ? null : Number($('#fBanheiros').value),
+      vagas: $('#fVagas').value === '' ? null : Number($('#fVagas').value),
       area: $('#fArea').value === '' ? null : Number($('#fArea').value),
+      financiamento: formFinanciamento,
       descricao: $('#fDescricao').value.trim(),
       fotos: formPhotos,
       fotoHash,
@@ -859,17 +905,19 @@
     const tags = (im.tipo||[]).map(t => `<span class="tag ${t}">${t==='venda'?'Venda':'Aluguel'}</span>`).join('');
 
     const specs = [];
-    if(im.quartos) specs.push(`<div class="spec"><b>${im.quartos}</b>Quartos</div>`);
-    if(im.banheiros) specs.push(`<div class="spec"><b>${im.banheiros}</b>Banheiros</div>`);
-    if(im.area) specs.push(`<div class="spec"><b>${im.area}m²</b>Área</div>`);
+    if(im.quartos) specs.push(`<div class="spec"><b>🛏️ ${im.quartos}</b>Quartos</div>`);
+    if(im.banheiros) specs.push(`<div class="spec"><b>🛁 ${im.banheiros}</b>Banheiros</div>`);
+    if(im.vagas) specs.push(`<div class="spec"><b>🚙 ${im.vagas}</b>Vaga(s)</div>`);
+    if(im.area) specs.push(`<div class="spec"><b>📐 ${im.area}m²</b>Área</div>`);
+    if(im.financiamento) specs.push(`<div class="spec"><b>🚨 ${im.financiamento === 'sim' ? 'Sim' : 'Não'}</b>Financiamento</div>`);
 
     $('#detailBody').innerHTML = `
       ${gallery}
       <div class="detail-tags">${tags}</div>
       <p class="detail-title">${escapeHtml(im.titulo || 'Sem título')}</p>
-      ${im.codigo ? `<p class="detail-codigo">Código: ${escapeHtml(im.codigo)}</p>` : ''}
-      <p class="detail-end">${escapeHtml(im.bairro||'')}${im.bairro && im.endereco?' · ':''}${escapeHtml(im.endereco||'')}</p>
-      <p class="detail-valor">${fmtMoney(im.valor)}</p>
+      ${im.codigo ? `<p class="detail-codigo">🔑 Código: ${escapeHtml(im.codigo)}</p>` : ''}
+      <p class="detail-end">📍 ${escapeHtml(im.bairro||'')}${im.bairro && im.endereco?' · ':''}${escapeHtml(im.endereco||'')}</p>
+      <p class="detail-valor">💰 ${fmtMoney(im.valor)}</p>
       ${specs.length ? `<div class="specs">${specs.join('')}</div>` : ''}
       ${im.descricao ? `<p class="detail-desc">${escapeHtml(im.descricao)}</p>` : ''}
       <div class="btn-row admin-only">
