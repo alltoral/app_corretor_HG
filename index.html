@@ -118,6 +118,15 @@
     position:absolute;top:8px;right:8px;background:var(--brand-800);color:#fff;font-size:10px;
     font-weight:700;padding:3px 7px;border-radius:12px;
   }
+  .status-badge{
+    position:absolute;top:8px;left:8px;z-index:2;font-size:9px;font-weight:800;color:#fff;
+    padding:3px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.3px;
+  }
+  .status-badge.disponivel{background:#2f9e44;}
+  .status-badge.reservado{background:#e08e0b;}
+  .status-badge.vendido{background:#c0392b;}
+  .status-badge.alugado{background:#6f42c1;}
+  .feed-gallery .status-badge{top:12px;left:12px;font-size:11px;padding:5px 10px;}
 
   .empty{text-align:center;color:var(--muted);padding:60px 20px;}
 
@@ -151,14 +160,18 @@
   }
   input[readonly]{background:var(--brand-100);color:var(--brand-800);font-weight:700;}
   textarea{resize:vertical;min-height:80px;}
-  .tipo-toggle{display:flex;gap:8px;}
+  .tipo-toggle{display:flex;gap:8px;flex-wrap:wrap;}
   .tipo-toggle button{
-    flex:1;padding:10px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
+    flex:1 1 auto;min-width:90px;padding:10px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
     font-weight:700;font-size:13px;color:var(--muted);cursor:pointer;
   }
   .tipo-toggle button.on{background:var(--brand-800);border-color:var(--brand-800);color:#fff;}
   .tipo-toggle button.on.venda{background:var(--brand-900);border-color:var(--brand-900);color:#fff;}
   .tipo-toggle button.on.aluguel{background:var(--brand-700);border-color:var(--brand-700);color:#fff;}
+  .tipo-toggle button.on[data-status="disponivel"]{background:#2f9e44;border-color:#2f9e44;color:#fff;}
+  .tipo-toggle button.on[data-status="reservado"]{background:#e08e0b;border-color:#e08e0b;color:#fff;}
+  .tipo-toggle button.on[data-status="vendido"]{background:#c0392b;border-color:#c0392b;color:#fff;}
+  .tipo-toggle button.on[data-status="alugado"]{background:#6f42c1;border-color:#6f42c1;color:#fff;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
   .mini-field{margin-bottom:0;}
@@ -194,7 +207,7 @@
   .btn.ghost{background:#fff;color:var(--brand-900);border:1.5px solid var(--brand-900);}
   .btn.danger{background:#fff;color:var(--danger);border:1.5px solid var(--danger);}
 
-  .feed-gallery{margin:0 -16px 14px;}
+  .feed-gallery{margin:0 -16px 14px;position:relative;}
   .feed-scroll{
     display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
     scrollbar-width:none;
@@ -207,6 +220,14 @@
   .feed-dots{display:flex;justify-content:center;gap:5px;margin-top:8px;}
   .feed-dot{width:6px;height:6px;border-radius:50%;background:var(--line);transition:width .15s;}
   .feed-dot.active{background:var(--brand-800);width:16px;border-radius:3px;}
+  .feed-nav{
+    position:absolute;top:50%;transform:translateY(-50%);background:rgba(20,20,20,.45);color:#fff;
+    border:none;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;z-index:3;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .feed-nav.prev{left:10px;} .feed-nav.next{right:10px;}
+  .feed-nav.hidden{display:none;}
+  @media (max-width:600px){ .feed-nav{display:none !important;} }
   .gallery-empty{
     height:220px;border-radius:0;background:var(--brand-100);color:var(--brand-700);
     display:flex;align-items:center;justify-content:center;font-size:13px;margin:0 -16px 14px;
@@ -303,6 +324,7 @@
     <div class="search-row">
       <input type="text" id="searchInput" placeholder="Buscar por código, endereço ou bairro...">
       <button class="icon-btn" id="imgSearchBtn" title="Buscar por foto">📷</button>
+      <button class="icon-btn" id="archiveToggleBtn" title="Ver arquivados">📦</button>
     </div>
     <input type="file" id="imgSearchInput" accept="image/*" capture="environment">
     <div class="img-search-banner" id="imgSearchBanner">
@@ -318,6 +340,13 @@
       <button class="filter-chip active" data-catfilter="todas">🏠🏢 Todos os tipos</button>
       <button class="filter-chip" data-catfilter="casa">🏠 Casa</button>
       <button class="filter-chip" data-catfilter="apartamento">🏢 Apartamento</button>
+    </div>
+    <div class="filters">
+      <button class="filter-chip active" data-statusfilter="todos">Status: todos</button>
+      <button class="filter-chip" data-statusfilter="disponivel">Disponível</button>
+      <button class="filter-chip" data-statusfilter="reservado">Reservado</button>
+      <button class="filter-chip" data-statusfilter="vendido">Vendido</button>
+      <button class="filter-chip" data-statusfilter="alugado">Alugado</button>
     </div>
   </div>
 
@@ -366,6 +395,21 @@
     <div class="tipo-toggle">
       <button type="button" data-cat="casa" id="catCasa">🏠 Casa</button>
       <button type="button" data-cat="apartamento" id="catApto">🏢 Apartamento</button>
+    </div>
+
+    <label>🛋️ Mobília</label>
+    <div class="tipo-toggle">
+      <button type="button" data-mob="mobiliado" id="mobSim">Mobiliado</button>
+      <button type="button" data-mob="semi" id="mobSemi">Semi-mobiliado</button>
+      <button type="button" data-mob="nao" id="mobNao">Sem mobília</button>
+    </div>
+
+    <label>🚦 Situação</label>
+    <div class="tipo-toggle" id="statusToggle">
+      <button type="button" data-status="disponivel" id="statusDisponivel">Disponível</button>
+      <button type="button" data-status="reservado" id="statusReservado">Reservado</button>
+      <button type="button" data-status="vendido" id="statusVendido">Vendido</button>
+      <button type="button" data-status="alugado" id="statusAlugado">Alugado</button>
     </div>
 
     <div class="row2">
@@ -506,6 +550,8 @@
   let imoveis = [];
   let currentFilter = 'todos';
   let currentCatFilter = 'todas';
+  let currentStatusFilter = 'todos';
+  let showArchived = false;
   let editingId = null;
   let isNewRecord = true;
   let formPhotos = [];
@@ -698,8 +744,13 @@
   }
 
   // ---------- render list ----------
+  function statusLabel(s){
+    return {disponivel:'Disponível', reservado:'Reservado', vendido:'Vendido', alugado:'Alugado'}[s] || 'Disponível';
+  }
+
   function render(){
-    countLabel.textContent = imoveis.length + (imoveis.length===1 ? ' imóvel cadastrado' : ' imóveis cadastrados');
+    const totalVisible = imoveis.filter(im => showArchived ? im.arquivado : !im.arquivado).length;
+    countLabel.textContent = totalVisible + (totalVisible===1 ? ' imóvel cadastrado' : ' imóveis cadastrados') + (showArchived ? ' (arquivados)' : '');
 
     let list;
     if(imgSearchResults){
@@ -707,8 +758,10 @@
     } else {
       const q = $('#searchInput').value.trim().toLowerCase();
       list = imoveis.filter(im => {
+        if(showArchived){ if(!im.arquivado) return false; } else { if(im.arquivado) return false; }
         if(currentFilter !== 'todos' && !(im.tipo||[]).includes(currentFilter)) return false;
         if(currentCatFilter !== 'todas' && im.categoria !== currentCatFilter) return false;
+        if(currentStatusFilter !== 'todos' && (im.status||'disponivel') !== currentStatusFilter) return false;
         if(q){
           const hay = (im.endereco + ' ' + im.bairro + ' ' + im.titulo + ' ' + (im.codigo||'')).toLowerCase();
           if(!hay.includes(q)) return false;
@@ -722,7 +775,9 @@
       emptyState.style.display = 'block';
       emptyState.querySelector('p').innerHTML = imgSearchResults
         ? 'Nenhum imóvel com foto parecida foi encontrado.'
-        : 'Nenhum imóvel encontrado.<br>Toque no botão + para cadastrar o primeiro.';
+        : showArchived
+          ? 'Nenhum imóvel arquivado.'
+          : 'Nenhum imóvel encontrado.<br>Toque no botão + para cadastrar o primeiro.';
       return;
     }
     emptyState.style.display = 'none';
@@ -735,12 +790,15 @@
       const thumb = thumbSrc ? `<img src="${thumbSrc}" loading="lazy" decode="async">` : '🏠';
       const tags = (im.tipo||[]).map(t => `<span class="tag ${t}">${t === 'venda' ? 'Venda' : 'Aluguel'}</span>`).join('');
       const catTag = im.categoria ? `<span class="tag categoria">${im.categoria === 'casa' ? '🏠 Casa' : '🏢 Apto'}</span>` : '';
+      const mobTag = im.mobiliado ? `<span class="tag categoria">🛋️ ${im.mobiliado === 'mobiliado' ? 'Mobiliado' : im.mobiliado === 'semi' ? 'Semi-mobiliado' : 'Sem mobília'}</span>` : '';
       const codigoTag = im.codigo ? `<span class="tag codigo">🔑${escapeHtml(im.codigo)}</span>` : '';
+      const statusBadge = `<span class="status-badge ${im.status||'disponivel'}">${statusLabel(im.status)}</span>`;
       card.innerHTML = `
         ${imgSearchResults ? `<div class="match-badge">${entry.pct}% parecido</div>` : ''}
+        ${statusBadge}
         <div class="thumb">${thumb}</div>
         <div class="info">
-          <div class="tags">${tags}${catTag}${codigoTag}</div>
+          <div class="tags">${tags}${catTag}${mobTag}${codigoTag}</div>
           <p class="titulo">${escapeHtml(im.titulo || 'Sem título')}</p>
           <p class="end">📍 ${escapeHtml(im.bairro || '')}${im.bairro && im.endereco ? ' · ' : ''}${escapeHtml(im.endereco || '')}</p>
           <p class="valor">💰 ${fmtMoney(im.valor)}</p>
@@ -761,11 +819,21 @@
         document.querySelectorAll('[data-catfilter]').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         currentCatFilter = chip.dataset.catfilter;
+      } else if(chip.dataset.statusfilter){
+        document.querySelectorAll('[data-statusfilter]').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentStatusFilter = chip.dataset.statusfilter;
       }
       render();
     });
   });
   $('#searchInput').addEventListener('input', render);
+
+  $('#archiveToggleBtn').addEventListener('click', () => {
+    showArchived = !showArchived;
+    $('#archiveToggleBtn').classList.toggle('active', showArchived);
+    render();
+  });
 
   // ---------- image search ----------
   $('#imgSearchBtn').addEventListener('click', () => $('#imgSearchInput').click());
@@ -811,6 +879,8 @@
   const detailOverlay = $('#detailOverlay');
   let formTipo = new Set();
   let formCategoria = null;
+  let formMobiliado = null;
+  let formStatus = 'disponivel';
 
   function openForm(im){
     editingId = im ? im.id : uid();
@@ -820,6 +890,8 @@
     formCapaThumb = im ? (im.capaThumb || null) : null;
     formTipo = new Set(im ? (im.tipo||[]) : []);
     formCategoria = im ? (im.categoria || null) : null;
+    formMobiliado = im ? (im.mobiliado || null) : null;
+    formStatus = im ? (im.status || 'disponivel') : 'disponivel';
     $('#formTitle').textContent = im ? 'Editar imóvel' : 'Novo imóvel';
     $('#fCodigo').value = im ? im.codigo || '' : '';
     $('#fTitulo').value = im ? im.titulo || '' : '';
@@ -835,6 +907,8 @@
     $('#fDescricao').value = im ? im.descricao || '' : '';
     updateTipoButtons();
     updateCategoriaButtons();
+    updateMobiliaButtons();
+    updateStatusButtons();
     renderPhotoGrid();
     formOverlay.classList.add('open');
   }
@@ -864,6 +938,36 @@
   $('#catApto').addEventListener('click', () => {
     formCategoria = (formCategoria === 'apartamento') ? null : 'apartamento';
     updateCategoriaButtons();
+  });
+
+  function updateMobiliaButtons(){
+    $('#mobSim').classList.toggle('on', formMobiliado === 'mobiliado');
+    $('#mobSemi').classList.toggle('on', formMobiliado === 'semi');
+    $('#mobNao').classList.toggle('on', formMobiliado === 'nao');
+  }
+  $('#mobSim').addEventListener('click', () => {
+    formMobiliado = (formMobiliado === 'mobiliado') ? null : 'mobiliado';
+    updateMobiliaButtons();
+  });
+  $('#mobSemi').addEventListener('click', () => {
+    formMobiliado = (formMobiliado === 'semi') ? null : 'semi';
+    updateMobiliaButtons();
+  });
+  $('#mobNao').addEventListener('click', () => {
+    formMobiliado = (formMobiliado === 'nao') ? null : 'nao';
+    updateMobiliaButtons();
+  });
+
+  function updateStatusButtons(){
+    document.querySelectorAll('#statusToggle button').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.status === formStatus);
+    });
+  }
+  document.querySelectorAll('#statusToggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      formStatus = btn.dataset.status;
+      updateStatusButtons();
+    });
   });
 
   function updateFinanciamentoButtons(){
@@ -998,11 +1102,19 @@
       $('#fCodigo').value = codigo;
     }
 
+    let arquivado = isNewRecord ? false : (imoveis.find(i=>i.id===editingId)?.arquivado || false);
+    if((formStatus === 'vendido' || formStatus === 'alugado') && !arquivado){
+      arquivado = confirm(`Este imóvel está marcado como ${formStatus === 'vendido' ? 'Vendido' : 'Alugado'}. Deseja arquivá-lo agora? Ele deixará de aparecer na lista principal (mas continua acessível em "📦 Arquivados").`);
+    }
+
     const obj = {
       id: editingId,
       codigo,
       tipo: Array.from(formTipo),
       categoria: formCategoria,
+      mobiliado: formMobiliado,
+      status: formStatus,
+      arquivado,
       titulo,
       endereco,
       bairro: $('#fBairro').value.trim(),
@@ -1041,15 +1153,18 @@
     const fotos = im.fotos || [];
     const gallery = fotos.length
       ? `<div class="feed-gallery">
+          <span class="status-badge ${im.status||'disponivel'}">${statusLabel(im.status)}</span>
+          ${fotos.length > 1 ? `<button class="feed-nav prev hidden" id="feedPrev">‹</button><button class="feed-nav next" id="feedNext">›</button>` : ''}
           <div class="feed-scroll" id="feedScroll">
             ${fotos.map((f,i)=>`<img src="${f}" data-idx="${i}" loading="${i===0?'eager':'lazy'}" decode="async">`).join('')}
           </div>
           ${fotos.length > 1 ? `<div class="feed-dots" id="feedDots">${fotos.map((_,i)=>`<div class="feed-dot ${i===0?'active':''}"></div>`).join('')}</div>` : ''}
         </div>`
-      : `<div class="gallery-empty">Sem fotos cadastradas</div>`;
+      : `<div class="gallery-empty"><span class="status-badge ${im.status||'disponivel'}" style="position:static;display:inline-block;margin-bottom:8px;">${statusLabel(im.status)}</span><br>Sem fotos cadastradas</div>`;
 
     const tags = (im.tipo||[]).map(t => `<span class="tag ${t}">${t==='venda'?'Venda':'Aluguel'}</span>`).join('')
-      + (im.categoria ? `<span class="tag categoria">${im.categoria === 'casa' ? '🏠 Casa' : '🏢 Apartamento'}</span>` : '');
+      + (im.categoria ? `<span class="tag categoria">${im.categoria === 'casa' ? '🏠 Casa' : '🏢 Apartamento'}</span>` : '')
+      + (im.mobiliado ? `<span class="tag categoria">🛋️ ${im.mobiliado === 'mobiliado' ? 'Mobiliado' : im.mobiliado === 'semi' ? 'Semi-mobiliado' : 'Sem mobília'}</span>` : '');
 
     const specs = [];
     if(im.quartos) specs.push(`<div class="spec"><b>🛏️ ${im.quartos}</b>Quartos</div>`);
@@ -1181,23 +1296,38 @@
     const scrollEl = document.getElementById('feedScroll');
     if(!scrollEl) return;
     const dots = document.querySelectorAll('#feedDots .feed-dot');
+    const prevBtn = document.getElementById('feedPrev');
+    const nextBtn = document.getElementById('feedNext');
 
     scrollEl.querySelectorAll('img').forEach(img => {
       img.addEventListener('click', () => openLightbox(fotos, Number(img.dataset.idx)));
     });
 
-    if(dots.length){
+    function updateFeedState(){
+      const idx = Math.round(scrollEl.scrollLeft / scrollEl.clientWidth);
+      dots.forEach((d,i) => d.classList.toggle('active', i === idx));
+      if(prevBtn) prevBtn.classList.toggle('hidden', idx <= 0);
+      if(nextBtn) nextBtn.classList.toggle('hidden', idx >= fotos.length - 1);
+    }
+
+    if(dots.length || prevBtn || nextBtn){
       let ticking = false;
       scrollEl.addEventListener('scroll', () => {
         if(ticking) return;
         ticking = true;
-        requestAnimationFrame(() => {
-          const idx = Math.round(scrollEl.scrollLeft / scrollEl.clientWidth);
-          dots.forEach((d,i) => d.classList.toggle('active', i === idx));
-          ticking = false;
-        });
+        requestAnimationFrame(() => { updateFeedState(); ticking = false; });
       });
+      updateFeedState();
     }
+
+    prevBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      scrollEl.scrollBy({left: -scrollEl.clientWidth, behavior: 'smooth'});
+    });
+    nextBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      scrollEl.scrollBy({left: scrollEl.clientWidth, behavior: 'smooth'});
+    });
   }
 
   async function shareProperty(im){
@@ -1226,6 +1356,9 @@
         <button class="btn ghost" id="editBtn">Editar</button>
         <button class="btn danger" id="deleteBtn">Excluir</button>
       </div>
+      <div class="btn-row admin-only">
+        <button class="btn ghost" id="archiveBtn">${im.arquivado ? '📤 Desarquivar' : '📦 Arquivar'}</button>
+      </div>
       <div class="btn-row">
         <button class="btn primary" id="shareBtn">🔗 Enviar link pro cliente</button>
       </div>
@@ -1238,7 +1371,16 @@
         closeDetail();
       }
     });
+    $('#archiveBtn')?.addEventListener('click', async () => {
+      await toggleArchive(im);
+      closeDetail();
+    });
     $('#shareBtn').addEventListener('click', () => shareProperty(im));
+  }
+
+  async function toggleArchive(im){
+    const updated = {...im, arquivado: !im.arquivado};
+    await saveImovel(updated);
   }
 
   $('#detailBack').addEventListener('click', closeDetail);
