@@ -15,6 +15,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
 <style>
   :root{
     --brand-900:#242b52;
@@ -303,10 +304,11 @@
     <label>Descrição</label>
     <textarea id="fDescricao" placeholder="Detalhes do imóvel, condições, diferenciais..."></textarea>
 
-    <label>Fotos</label>
+    <label>Fotos <span style="text-transform:none;font-weight:400;color:var(--muted);">(até 20)</span></label>
     <div class="photo-grid" id="photoGrid">
       <div class="add-photo" id="addPhotoBtn">+</div>
     </div>
+    <div id="photoUploadStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
     <input type="file" id="photoInput" accept="image/*" multiple>
 
     <div class="btn-row">
@@ -341,13 +343,15 @@
   };
 
   let firestoreDb = null;
+  let storageRef = null;
   try{
     if(typeof firebase !== 'undefined'){
       firebase.initializeApp(firebaseConfig);
       firestoreDb = firebase.firestore();
       firestoreDb.enablePersistence({synchronizeTabs:true}).catch(() => {});
+      storageRef = firebase.storage();
     }
-  }catch(e){ firestoreDb = null; }
+  }catch(e){ firestoreDb = null; storageRef = null; }
 
   // ---------- storage adapter (legacy fallback): window.storage (Claude) or localStorage ----------
   const DB = {
@@ -389,7 +393,9 @@
   let imoveis = [];
   let currentFilter = 'todos';
   let editingId = null;
+  let isNewRecord = true;
   let formPhotos = [];
+  let formFotoHash = null;
   let currentDetailId = null;
   let clientMode = false;
   let imgSearchHash = null;
@@ -449,11 +455,6 @@
 
   async function saveImovel(obj){
     if(MODE === 'firestore'){
-      // Firestore documents have a 1MB limit; keep an eye on total payload size (mostly photos)
-      const approxSize = new Blob([JSON.stringify(obj)]).size;
-      if(approxSize > 900000){
-        throw new Error('Muitas fotos ou fotos muito grandes para este imóvel. Remova uma ou duas fotos e tente novamente.');
-      }
       await firestoreDb.collection('imoveis').doc(obj.id).set(obj);
     } else {
       await DB.set('imovel:' + obj.id, JSON.stringify(obj));
@@ -464,6 +465,13 @@
   async function deleteImovel(id){
     if(MODE === 'firestore'){
       await firestoreDb.collection('imoveis').doc(id).delete();
+      if(storageRef){
+        try{
+          const folder = storageRef.ref().child(`imoveis/${id}`);
+          const listing = await folder.listAll();
+          await Promise.all(listing.items.map(item => item.delete().catch(() => {})));
+        }catch(e){}
+      }
     } else {
       await DB.delete('imovel:' + id);
       imoveis = await loadAllLegacy();
@@ -514,6 +522,50 @@
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  // Resizes to a large, still-sharp size and returns a Blob, for uploading full-quality photos to Storage
+  function compressImageToBlob(file, maxDim, quality){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let {width, height} = img;
+          if(width > height && width > maxDim){
+            height = Math.round(height * (maxDim/width)); width = maxDim;
+          } else if(height > maxDim){
+            width = Math.round(width * (maxDim/height)); height = maxDim;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Uploads a photo to Firebase Storage (when available) and returns its public URL.
+  // Falls back to an inline base64 image when Storage isn't configured (e.g. preview inside Claude).
+  async function uploadPhoto(file, imovelId, index){
+    if(storageRef){
+      const path = `imoveis/${imovelId}/${Date.now()}_${index}.jpg`;
+      const blob = await compressImageToBlob(file, 1920, 0.82);
+      const ref = storageRef.ref().child(path);
+      await ref.put(blob);
+      return await ref.getDownloadURL();
+    }
+    return await compressImage(file, 900, 0.6);
+  }
+
+  async function deletePhotoFromStorage(url){
+    if(!storageRef || typeof url !== 'string' || !url.startsWith('https://firebasestorage')) return;
+    try{ await storageRef.refFromURL(url).delete(); }catch(e){}
   }
 
   // perceptual difference-hash (dHash), 64-bit string, used for "busca por foto"
@@ -656,8 +708,10 @@
   let formTipo = new Set();
 
   function openForm(im){
-    editingId = im ? im.id : null;
+    editingId = im ? im.id : uid();
+    isNewRecord = !im;
     formPhotos = im ? [...(im.fotos||[])] : [];
+    formFotoHash = im ? (im.fotoHash || null) : null;
     formTipo = new Set(im ? (im.tipo||[]) : []);
     $('#formTitle').textContent = im ? 'Editar imóvel' : 'Novo imóvel';
     $('#fCodigo').value = im ? im.codigo || '' : '';
@@ -697,7 +751,7 @@
       item.innerHTML = `<img src="${src}"><button class="rm" data-idx="${idx}">✕</button>`;
       gridEl.appendChild(item);
     });
-    if(formPhotos.length < 6){
+    if(formPhotos.length < 20){
       const addBtn = document.createElement('div');
       addBtn.className = 'add-photo';
       addBtn.textContent = '+';
@@ -707,22 +761,36 @@
     gridEl.querySelectorAll('.rm').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        formPhotos.splice(Number(btn.dataset.idx), 1);
+        const idx = Number(btn.dataset.idx);
+        const removed = formPhotos.splice(idx, 1)[0];
+        deletePhotoFromStorage(removed);
+        if(idx === 0) formFotoHash = null;
         renderPhotoGrid();
       });
     });
   }
 
   $('#photoInput').addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files || []);
-    for(const f of files){
-      if(formPhotos.length >= 6) break;
+    const files = Array.from(e.target.files || []).slice(0, 20 - formPhotos.length);
+    if(!files.length) return;
+    const statusEl = $('#photoUploadStatus');
+    for(let i=0;i<files.length;i++){
+      if(statusEl) statusEl.textContent = `Enviando foto ${i+1} de ${files.length}...`;
       try{
-        const compressed = await compressImage(f, 900, 0.55);
-        formPhotos.push(compressed);
-      }catch(err){}
+        if(formPhotos.length === 0 && !formFotoHash){
+          try{
+            const previewDataUrl = await compressImage(files[i], 300, 0.6);
+            formFotoHash = await computeDHash(previewDataUrl);
+          }catch(hashErr){}
+        }
+        const url = await uploadPhoto(files[i], editingId, Date.now() + '_' + i);
+        formPhotos.push(url);
+        renderPhotoGrid();
+      }catch(err){
+        alert('Não foi possível enviar uma das fotos. Tente novamente.');
+      }
     }
-    renderPhotoGrid();
+    if(statusEl) statusEl.textContent = '';
     e.target.value = '';
   });
 
@@ -740,13 +808,10 @@
     $('#saveBtn').textContent = 'Salvando...';
     $('#saveBtn').disabled = true;
 
-    let fotoHash = null;
-    if(formPhotos.length){
-      try{ fotoHash = await computeDHash(formPhotos[0]); }catch(e){}
-    }
+    let fotoHash = formFotoHash;
 
     const obj = {
-      id: editingId || uid(),
+      id: editingId,
       codigo: $('#fCodigo').value.trim(),
       tipo: Array.from(formTipo),
       titulo,
@@ -759,7 +824,7 @@
       descricao: $('#fDescricao').value.trim(),
       fotos: formPhotos,
       fotoHash,
-      criadoEm: editingId ? (imoveis.find(i=>i.id===editingId)?.criadoEm || Date.now()) : Date.now()
+      criadoEm: isNewRecord ? Date.now() : (imoveis.find(i=>i.id===editingId)?.criadoEm || Date.now())
     };
     try{
       await saveImovel(obj);
