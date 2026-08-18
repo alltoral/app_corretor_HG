@@ -150,6 +150,7 @@
     width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14.5px;
     font-family:inherit;background:#fff;
   }
+  input[readonly]{background:var(--brand-100);color:var(--brand-800);font-weight:700;}
   textarea{resize:vertical;min-height:80px;}
   .tipo-toggle{display:flex;gap:8px;}
   .tipo-toggle button{
@@ -323,7 +324,7 @@
     <div class="row2">
       <div>
         <label>🔑 Código do imóvel</label>
-        <input type="text" id="fCodigo" placeholder="Ex: HG-014">
+        <input type="text" id="fCodigo" placeholder="Gerado automaticamente ao salvar" readonly>
       </div>
       <div>
         <label>🏠 Título</label>
@@ -568,6 +569,26 @@
     await DB.set('config:logo', dataUrl);
   }
 
+  // Generates the next sequential "HG-001" style code and persists the counter,
+  // so every new imóvel gets one automatically — never typed by hand.
+  async function getNextCode(){
+    if(MODE === 'firestore'){
+      const counterRef = firestoreDb.collection('config').doc('counter');
+      const next = await firestoreDb.runTransaction(async (tx) => {
+        const doc = await tx.get(counterRef);
+        const current = (doc.exists && doc.data().value) ? doc.data().value : 0;
+        const nextVal = current + 1;
+        tx.set(counterRef, {value: nextVal});
+        return nextVal;
+      });
+      return 'HG-' + String(next).padStart(3, '0');
+    }
+    const current = Number(await DB.get('config:counter')) || 0;
+    const next = current + 1;
+    await DB.set('config:counter', String(next));
+    return 'HG-' + String(next).padStart(3, '0');
+  }
+
   // ---------- image helpers ----------
   function compressImage(file, maxDim, quality){
     return new Promise((resolve, reject) => {
@@ -625,12 +646,12 @@
   async function uploadPhoto(file, imovelId, index){
     if(storageRef){
       const path = `imoveis/${imovelId}/${Date.now()}_${index}.jpg`;
-      const blob = await compressImageToBlob(file, 1280, 0.62);
+      const blob = await compressImageToBlob(file, 1024, 0.55);
       const ref = storageRef.ref().child(path);
       await ref.put(blob);
       return await ref.getDownloadURL();
     }
-    return await compressImage(file, 900, 0.6);
+    return await compressImage(file, 700, 0.5);
   }
 
   async function deletePhotoFromStorage(url){
@@ -897,7 +918,9 @@
     if(!files.length) return;
     const statusEl = $('#photoUploadStatus');
     let remaining = files.length;
-    if(statusEl) statusEl.textContent = `Enviando ${files.length} foto(s)...`;
+    let failCount = 0;
+    let lastErr = null;
+    if(statusEl){ statusEl.style.color = ''; statusEl.textContent = `Enviando ${files.length} foto(s)...`; }
 
     files.forEach((file, i) => {
       const localUrl = URL.createObjectURL(file);
@@ -917,12 +940,28 @@
           const url = await uploadPhoto(file, editingId, Date.now() + '_' + i);
           formPhotos.push(url);
         }catch(err){
-          alert('Não foi possível enviar uma das fotos. Tente novamente.');
+          failCount++;
+          lastErr = err;
+          console.error('Falha ao enviar foto:', err);
         }finally{
           uploadingPreviews = uploadingPreviews.filter(p => p.id !== previewId);
           URL.revokeObjectURL(localUrl);
           remaining--;
-          if(statusEl) statusEl.textContent = remaining > 0 ? `Enviando... (${remaining} restante${remaining>1?'s':''})` : '';
+          if(statusEl){
+            if(remaining > 0){
+              statusEl.style.color = '';
+              statusEl.textContent = `Enviando... (${remaining} restante${remaining>1?'s':''})`;
+            } else if(failCount > 0){
+              statusEl.style.color = 'var(--danger)';
+              const hint = (lastErr && /unauthorized|permission/i.test(lastErr.code||lastErr.message||''))
+                ? ' Verifique se o Storage está liberado no Firebase (veja o LEIA-ME).'
+                : '';
+              statusEl.textContent = `⚠️ ${failCount} foto(s) não foram enviadas.${hint}`;
+            } else {
+              statusEl.style.color = '';
+              statusEl.textContent = '';
+            }
+          }
           renderPhotoGrid();
         }
       })();
@@ -946,9 +985,15 @@
 
     let fotoHash = formFotoHash;
 
+    let codigo = isNewRecord ? '' : (imoveis.find(i=>i.id===editingId)?.codigo || '');
+    if(isNewRecord){
+      try{ codigo = await getNextCode(); }catch(e){ codigo = ''; }
+      $('#fCodigo').value = codigo;
+    }
+
     const obj = {
       id: editingId,
-      codigo: $('#fCodigo').value.trim(),
+      codigo,
       tipo: Array.from(formTipo),
       categoria: formCategoria,
       titulo,
@@ -1041,9 +1086,6 @@
       <div class="btn-row">
         <button class="btn primary" id="shareBtn">🔗 Enviar link pro cliente</button>
       </div>
-      <div class="btn-row">
-        <button class="btn ghost" id="printBtn">Imprimir / salvar PDF</button>
-      </div>
     `;
     $('#editBtn')?.addEventListener('click', () => { closeDetail(); openForm(im); });
     $('#deleteBtn')?.addEventListener('click', async () => {
@@ -1053,7 +1095,6 @@
       }
     });
     $('#shareBtn').addEventListener('click', () => shareProperty(im));
-    $('#printBtn').addEventListener('click', () => window.print());
   }
 
   $('#detailBack').addEventListener('click', closeDetail);
@@ -1113,12 +1154,8 @@
     }
 
     container.innerHTML = buildPropertyMarkup(im) + `
-      <div class="btn-row">
-        <button class="btn primary" id="sharedPrintBtn">Imprimir / salvar PDF</button>
-      </div>
       <div class="shared-footer">Ficha gerada por HG Corretor de Imóveis</div>
     `;
-    $('#sharedPrintBtn').addEventListener('click', () => window.print());
     return true;
   }
 
