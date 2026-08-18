@@ -1,9 +1,11 @@
-const CACHE_NAME = 'hg-imoveis-v1';
+const CACHE_NAME = 'hg-imoveis-v2';
 const APP_SHELL = [
-  './catalogo-imoveis.html',
+  './',
+  './index.html',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/icon-512-maskable.png'
 ];
 
 self.addEventListener('install', (event) => {
