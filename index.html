@@ -263,7 +263,8 @@
   .detail-title{font-size:19px;font-weight:800;color:var(--brand-900);margin:0 0 4px;}
   .detail-codigo{font-size:12px;color:var(--muted);font-weight:600;margin:0 0 6px;}
   .detail-end{font-size:14px;color:var(--muted);margin:0 0 10px;}
-  .detail-valor{font-size:22px;font-weight:800;color:var(--brand-800);margin:0 0 12px;}
+  .detail-valor{font-size:22px;font-weight:800;color:var(--brand-800);margin:0 0 4px;}
+  .detail-despesas{font-size:12.5px;color:var(--muted);margin:0 0 12px;}
   .detail-tags{display:flex;gap:6px;margin-bottom:10px;}
   .specs{display:flex;flex-wrap:wrap;gap:16px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:14px;}
   .spec{font-size:13px;color:var(--brand-800);}
@@ -432,6 +433,22 @@
 
     <label>💰 Valor (R$)</label>
     <input type="number" id="fValor" placeholder="Ex: 350000" step="0.01">
+
+    <label>🧾 Despesas adicionais</label>
+    <div class="row3">
+      <div class="mini-field">
+        <span class="mini-label">Condomínio (R$)</span>
+        <input type="number" id="fCondominio" placeholder="0" step="0.01">
+      </div>
+      <div class="mini-field">
+        <span class="mini-label">IPTU (R$)</span>
+        <input type="number" id="fIptu" placeholder="0" step="0.01">
+      </div>
+      <div class="mini-field">
+        <span class="mini-label">Seguro incêndio (R$)</span>
+        <input type="number" id="fSeguroIncendio" placeholder="0" step="0.01">
+      </div>
+    </div>
 
     <label>Detalhes</label>
     <div class="row2" style="margin-bottom:8px;">
@@ -899,6 +916,9 @@
     $('#fEndereco').value = im ? im.endereco || '' : '';
     $('#fBairro').value = im ? im.bairro || '' : '';
     $('#fValor').value = im ? im.valor ?? '' : '';
+    $('#fCondominio').value = im ? im.condominio ?? '' : '';
+    $('#fIptu').value = im ? im.iptu ?? '' : '';
+    $('#fSeguroIncendio').value = im ? im.seguroIncendio ?? '' : '';
     $('#fQuartos').value = im ? im.quartos ?? '' : '';
     $('#fBanheiros').value = im ? im.banheiros ?? '' : '';
     $('#fVagas').value = im ? im.vagas ?? '' : '';
@@ -1120,6 +1140,9 @@
       endereco,
       bairro: $('#fBairro').value.trim(),
       valor: $('#fValor').value === '' ? null : Number($('#fValor').value),
+      condominio: $('#fCondominio').value === '' ? null : Number($('#fCondominio').value),
+      iptu: $('#fIptu').value === '' ? null : Number($('#fIptu').value),
+      seguroIncendio: $('#fSeguroIncendio').value === '' ? null : Number($('#fSeguroIncendio').value),
       quartos: $('#fQuartos').value === '' ? null : Number($('#fQuartos').value),
       banheiros: $('#fBanheiros').value === '' ? null : Number($('#fBanheiros').value),
       vagas: $('#fVagas').value === '' ? null : Number($('#fVagas').value),
@@ -1174,6 +1197,11 @@
     if(im.area) specs.push(`<div class="spec"><b>📐 ${im.area}m²</b>Área</div>`);
     if(im.financiamento) specs.push(`<div class="spec"><b>🚨 ${im.financiamento === 'sim' ? 'Sim' : 'Não'}</b>Financiamento</div>`);
 
+    const despesas = [];
+    if(im.condominio) despesas.push(`Condomínio ${fmtMoney(im.condominio)}`);
+    if(im.iptu) despesas.push(`IPTU ${fmtMoney(im.iptu)}`);
+    if(im.seguroIncendio) despesas.push(`Seguro incêndio ${fmtMoney(im.seguroIncendio)}`);
+
     return `
       ${gallery}
       <div class="detail-tags">${tags}</div>
@@ -1181,6 +1209,7 @@
       ${im.codigo ? `<p class="detail-codigo">🔑 Código: ${escapeHtml(im.codigo)}</p>` : ''}
       <p class="detail-end">📍 ${escapeHtml(im.bairro||'')}${im.bairro && im.endereco?' · ':''}${escapeHtml(im.endereco||'')}</p>
       <p class="detail-valor">💰 ${fmtMoney(im.valor)}</p>
+      ${despesas.length ? `<p class="detail-despesas">🧾 ${despesas.join(' · ')}</p>` : ''}
       ${specs.length ? `<div class="specs">${specs.join('')}</div>` : ''}
       ${im.descricao ? `<p class="detail-desc">${escapeHtml(im.descricao)}</p>` : ''}
     `;
