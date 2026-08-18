@@ -207,7 +207,7 @@
   .btn.ghost{background:#fff;color:var(--brand-900);border:1.5px solid var(--brand-900);}
   .btn.danger{background:#fff;color:var(--danger);border:1.5px solid var(--danger);}
 
-  .feed-gallery{margin:0 -16px 14px;position:relative;}
+  .feed-gallery{margin:-16px -16px 14px;position:relative;}
   .feed-scroll{
     display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
     scrollbar-width:none;
@@ -230,7 +230,8 @@
   @media (max-width:600px){ .feed-nav{display:none !important;} }
   .gallery-empty{
     height:220px;border-radius:0;background:var(--brand-100);color:var(--brand-700);
-    display:flex;align-items:center;justify-content:center;font-size:13px;margin:0 -16px 14px;
+    display:flex;align-items:center;justify-content:center;font-size:13px;margin:-16px -16px 14px;
+    flex-direction:column;
   }
 
   #lightbox{
