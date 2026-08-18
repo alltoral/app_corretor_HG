@@ -1,0 +1,16 @@
+{
+  "name": "HG Corretor de Imóveis",
+  "short_name": "HG Imóveis",
+  "description": "Catálogo de imóveis para venda e aluguel - HG Corretor de Imóveis",
+  "start_url": "./catalogo-imoveis.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f7f8fb",
+  "theme_color": "#242b52",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
