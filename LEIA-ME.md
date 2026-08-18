@@ -16,6 +16,25 @@
 
 Hoje o app já funciona sozinho (sem precisar de internet depois de instalado), guardando os dados no próprio celular/computador (`localStorage`). A limitação: os dados ficam só naquele aparelho — não sincronizam entre o seu celular e o computador, por exemplo.
 
+## Instalar como app de verdade (não como atalho do navegador)
+
+Corrigi um problema no `manifest.json`: ele ainda apontava para o nome de arquivo antigo (`catalogo-imoveis.html`), e como você renomeou pra `index.html`, o navegador não conseguia validar o app — por isso só oferecia "atalho", não "instalar app". Já corrigido. Também troquei o ícone usado em telas Android (maskable) por uma versão com mais margem, pra sua logo não ficar cortada quando o Android aplicar a máscara redonda/quadrada.
+
+**Reenvie estes arquivos pro GitHub, todos juntos, na raiz do repositório:**
+- `index.html`
+- `manifest.json`
+- `service-worker.js`
+- pasta `icons/` inteira (agora com o arquivo novo `icon-512-maskable.png` incluso)
+
+Depois de subir, espere a publicação (1-2 min) e faça este teste pra confirmar que ficou certo:
+
+1. Abra o site publicado no Chrome (Android ou computador).
+2. Aperte F12 (ou menu → Mais ferramentas → Ferramentas do desenvolvedor) → aba **Application** → **Manifest**.
+3. Se aparecer o nome "HG Corretor de Imóveis", os ícones e nenhum erro em vermelho, está tudo certo — o Chrome vai te oferecer o botão **"Instalar app"** (não mais "Adicionar atalho").
+4. No celular Android, o menu (⋮) do Chrome deve mostrar **"Instalar aplicativo"**. No iPhone, o Safari não tem esse botão automático — lá você usa Compartilhar → **"Adicionar à Tela de Início"**, e com os ajustes que já fiz (ícone e modo standalone) ele abre em tela cheia, sem a barra do navegador, como um app normal.
+
+Se depois de reenviar ainda aparecer só "atalho", me manda o link do site publicado que eu confiro direto o que está faltando.
+
 ## Firebase já está ligado ✅
 
 O app agora salva os imóveis no seu projeto Firebase (`app-corretor-hg`) usando o **Firestore**, com sincronização em tempo real: qualquer alteração feita no celular aparece automaticamente no computador (e vice-versa), sem precisar recarregar a página.
@@ -43,7 +62,25 @@ service cloud.firestore {
 
 ### Limite de tamanho por imóvel
 
-O Firestore limita cada imóvel a 1 MB de dados (isso inclui as fotos, guardadas como texto). Por isso deixei o cadastro com no máximo **6 fotos por imóvel**, já comprimidas automaticamente. Se aparecer um aviso de "fotos muito grandes" ao salvar, é só remover uma ou duas fotos.
+Agora as fotos são enviadas para o **Firebase Storage** (não ficam mais dentro do Firestore), então você pode cadastrar até **20 fotos por imóvel**, em boa qualidade. Pra isso funcionar, falta liberar o Storage também:
+
+1. No Firebase Console, vá em **Storage** → **Vamos começar** (se ainda não tiver criado) → escolha a mesma região do Firestore.
+2. Vá na aba **Regras** e cole:
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
+```
+
+3. Publique.
+
+⚠️ Mesma observação de antes: como está sem login, essas regras deixam o Storage aberto — adequado pro uso pessoal combinado, mas não divulgue a URL do app publicamente.
 
 ### Sem internet
 
